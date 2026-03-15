@@ -7,11 +7,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: sans-serif; }
-        #map { height: 100vh; width: 100vw; }
-        .marker-label { font-weight: bold; color: #333; }
-    </style>
-</head>
-<body>
+<style>
+    body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
+    #map { height: 100vh; width: 100%; position: absolute; top: 0; bottom: 0; }
+</style>
 
 <div id="map"></div>
 
@@ -28,7 +27,7 @@
 
     // 2. YOUR DATA SOURCE 
     // Paste your Published CSV URL from Step 1 between the quotes below
-    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?gid=941686088&single=true&output=csv";
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pubhtml?gid=0&single=true";
 
     // 3. Fetch and Plot Data
     Papa.parse(sheetURL, {
