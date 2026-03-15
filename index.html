@@ -3,14 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Warden Pilot</title>
+    <title>Warden Waymarker Map</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
+
     <style>
-        /* Force the map to actually show on the screen */
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
         #map { height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; }
-        .marker-label { font-family: sans-serif; padding: 5px; }
-        .nav-btn { background: #007bff; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; }
+        .marker-label { font-family: sans-serif; padding: 5px; min-width: 150px; }
+        .nav-btn { 
+            background: #007bff; color: white; border: none; padding: 12px; 
+            border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; 
+            font-weight: bold; font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -19,42 +25,46 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js" charset="utf-8"></script>
 
 <script>
-    // 1. Initialize Map
-    const map = L.map('map').setView([52.906, -2.148], 14);
+    // 1. Initialize Map centered on Stone
+    const map = L.map('map').setView([52.906, -2.148], 15);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // 2. Locate Me Button (The Blue Dot)
-    map.locate({setView: true, maxZoom: 16});
-    function onLocationFound(e) {
-        L.circle(e.latlng, e.accuracy / 2).addTo(map).bindPopup("You are here").openPopup();
-    }
-    map.on('locationfound', onLocationFound);
+    // 2. Add the "Locate Me" Button (The crosshair icon)
+    L.control.locate({
+        position: 'topright',
+        strings: { title: "Show my location" },
+        locateOptions: { enableHighAccuracy: true }
+    }).addTo(map);
 
-    // 3. YOUR DATA SOURCE
-    // Ensure this link ends with 'output=csv'
-    const sheetURL = "PASTE_YOUR_PUBLISHED_CSV_LINK_HERE";
+    // 3. Your Specific Data Source
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?output=csv";
 
+    // 4. Fetch and Plot Markers
     Papa.parse(sheetURL, {
         download: true,
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
             results.data.forEach(marker => {
-                // We check for Latitude (case sensitive!)
-                if(marker.Latitude && marker.Longitude) {
-                    L.marker([parseFloat(marker.Latitude), parseFloat(marker.Longitude)])
+                // Using lowercase names to match your exact spreadsheet headers
+                if(marker.latitude && marker.longitude) {
+                    const lat = parseFloat(marker.latitude);
+                    const lon = parseFloat(marker.longitude);
+
+                    L.marker([lat, lon])
                         .addTo(map)
                         .bindPopup(`
                             <div class="marker-label">
-                                <b>${marker.Nickname || 'Marker'}</b><br>
-                                <i>${marker.what3words}</i>
-                                <button class="nav-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${marker.Latitude},${marker.Longitude}')">
-                                    Get Directions
+                                <b style="font-size:16px;">${marker.nickname || 'Warden Marker'}</b><br>
+                                <span style="color:#666;">${marker.what3words}</span>
+                                <button class="nav-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}')">
+                                    Navigate to Marker
                                 </button>
                             </div>
                         `);
