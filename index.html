@@ -4,18 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Warden Waymarker Map</title>
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
-
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
         #map { height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; }
-        .marker-label { font-family: sans-serif; padding: 5px; min-width: 150px; }
+        .marker-label { font-family: sans-serif; padding: 5px; min-width: 160px; }
         .nav-btn { 
-            background: #007bff; color: white; border: none; padding: 12px; 
+            background: #28a745; color: white; border: none; padding: 12px; 
             border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; 
-            font-weight: bold; font-size: 14px;
+            font-weight: bold; text-decoration: none; display: block; text-align: center;
         }
     </style>
 </head>
@@ -25,47 +23,41 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js" charset="utf-8"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
 
 <script>
-    // 1. Initialize Map centered on Stone
+    // 1. Setup Map
     const map = L.map('map').setView([52.906, -2.148], 15);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
 
-    // 2. Add the "Locate Me" Button (The crosshair icon)
-    L.control.locate({
-        position: 'topright',
-        strings: { title: "Show my location" },
-        locateOptions: { enableHighAccuracy: true }
-    }).addTo(map);
+    // 2. Add GPS Button
+    L.control.locate({ position: 'topright', keepCurrentZoomLevel: true }).addTo(map);
 
-    // 3. Your Specific Data Source
+    // 3. Data Feed
     const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?output=csv";
 
-    // 4. Fetch and Plot Markers
     Papa.parse(sheetURL, {
         download: true,
         header: true,
-        skipEmptyLines: true,
         complete: function(results) {
-            results.data.forEach(marker => {
-                // Using lowercase names to match your exact spreadsheet headers
-                if(marker.latitude && marker.longitude) {
-                    const lat = parseFloat(marker.latitude);
-                    const lon = parseFloat(marker.longitude);
+            console.log("Found " + results.data.length + " rows in sheet.");
+            results.data.forEach(row => {
+                // Ensure the headers match your sheet exactly (lowercase)
+                if(row.latitude && row.longitude) {
+                    const lat = parseFloat(row.latitude);
+                    const lon = parseFloat(row.longitude);
+                    const name = row.nickname || "Waymarker";
+                    const w3w = row.what3words || "";
 
-                    L.marker([lat, lon])
-                        .addTo(map)
+                    L.marker([lat, lon]).addTo(map)
                         .bindPopup(`
                             <div class="marker-label">
-                                <b style="font-size:16px;">${marker.nickname || 'Warden Marker'}</b><br>
-                                <span style="color:#666;">${marker.what3words}</span>
-                                <button class="nav-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}')">
-                                    Navigate to Marker
-                                </button>
+                                <b>${name}</b><br>
+                                <small>${w3w}</small><br>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" 
+                                   target="_blank" class="nav-btn">
+                                   Navigate to Marker
+                                </a>
                             </div>
                         `);
                 }
