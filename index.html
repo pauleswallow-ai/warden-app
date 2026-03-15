@@ -34,9 +34,11 @@
         download: true,
         header: true,
         complete: function(results) {
-            const data = results.data;
-            data.forEach(marker => {
-                if(marker.Latitude && marker.Longitude) {
+    console.log("Data received:", results.data); // This shows us the data in the "Inspect" console
+    const data = results.data;
+    data.forEach(marker => {
+        console.log("Checking marker:", marker.Nickname, marker.Latitude, marker.Longitude);
+        // ... rest of the code ...
                     // Place a marker
                     L.marker([marker.Latitude, marker.Longitude])
                         .addTo(map)
