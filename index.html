@@ -2,15 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Warden Pilot</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; }
-<style>
-    body, html { margin: 0; padding: 0; height: 100%; width: 100%; }
-    #map { height: 100vh; width: 100%; position: absolute; top: 0; bottom: 0; }
-</style>
+        /* Force the map to actually show on the screen */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; }
+        .marker-label { font-family: sans-serif; padding: 5px; }
+        .nav-btn { background: #007bff; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
 
 <div id="map"></div>
 
@@ -18,37 +21,40 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 
 <script>
-    // 1. Initialize Map centered on Stone
+    // 1. Initialize Map
     const map = L.map('map').setView([52.906, -2.148], 14);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // 2. YOUR DATA SOURCE 
-    // Paste your Published CSV URL from Step 1 between the quotes below
-    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pubhtml?gid=0&single=true";
+    // 2. Locate Me Button (The Blue Dot)
+    map.locate({setView: true, maxZoom: 16});
+    function onLocationFound(e) {
+        L.circle(e.latlng, e.accuracy / 2).addTo(map).bindPopup("You are here").openPopup();
+    }
+    map.on('locationfound', onLocationFound);
 
-    // 3. Fetch and Plot Data
+    // 3. YOUR DATA SOURCE
+    // Ensure this link ends with 'output=csv'
+    const sheetURL = "PASTE_YOUR_PUBLISHED_CSV_LINK_HERE";
+
     Papa.parse(sheetURL, {
         download: true,
         header: true,
+        skipEmptyLines: true,
         complete: function(results) {
-    console.log("Data received:", results.data); // This shows us the data in the "Inspect" console
-    const data = results.data;
-    data.forEach(marker => {
-        console.log("Checking marker:", marker.Nickname, marker.Latitude, marker.Longitude);
-        // ... rest of the code ...
-                    // Place a marker
-                    L.marker([marker.Latitude, marker.Longitude])
+            results.data.forEach(marker => {
+                // We check for Latitude (case sensitive!)
+                if(marker.Latitude && marker.Longitude) {
+                    L.marker([parseFloat(marker.Latitude), parseFloat(marker.Longitude)])
                         .addTo(map)
                         .bindPopup(`
                             <div class="marker-label">
-                                <h3>${marker.Nickname || 'Marker'}</h3>
-                                <p>${marker.what3words}</p>
-                                <hr>
-                                <button onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${marker.Latitude},${marker.Longitude}')">
-                                    Navigate
+                                <b>${marker.Nickname || 'Marker'}</b><br>
+                                <i>${marker.what3words}</i>
+                                <button class="nav-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${marker.Latitude},${marker.Longitude}')">
+                                    Get Directions
                                 </button>
                             </div>
                         `);
