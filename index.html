@@ -1,1 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warden Pilot</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { height: 100vh; width: 100vw; }
+        .marker-label { font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
 
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+
+<script>
+    // 1. Initialize Map centered on Stone
+    const map = L.map('map').setView([52.906, -2.148], 14);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // 2. YOUR DATA SOURCE 
+    // Paste your Published CSV URL from Step 1 between the quotes below
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?gid=941686088&single=true&output=csv";
+
+    // 3. Fetch and Plot Data
+    Papa.parse(sheetURL, {
+        download: true,
+        header: true,
+        complete: function(results) {
+            const data = results.data;
+            data.forEach(marker => {
+                if(marker.Latitude && marker.Longitude) {
+                    // Place a marker
+                    L.marker([marker.Latitude, marker.Longitude])
+                        .addTo(map)
+                        .bindPopup(`
+                            <div class="marker-label">
+                                <h3>${marker.Nickname || 'Marker'}</h3>
+                                <p>${marker.what3words}</p>
+                                <hr>
+                                <button onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${marker.Latitude},${marker.Longitude}')">
+                                    Navigate
+                                </button>
+                            </div>
+                        `);
+                }
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
