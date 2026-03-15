@@ -26,15 +26,15 @@
 <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
 
 <script>
-    // 1. Setup Map
+    // 1. Initialize Map on Stone
     const map = L.map('map').setView([52.906, -2.148], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
 
-    // 2. Add GPS Button
+    // 2. Blue Dot / GPS Button
     L.control.locate({ position: 'topright', keepCurrentZoomLevel: true }).addTo(map);
 
-    // 3. Data Feed
-    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?output=csv";
+    // 3. YOUR DATA SOURCE
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?gid=941686088&single=true&output=csv";
 
     Papa.parse(sheetURL, {
         download: true,
@@ -42,14 +42,10 @@
         skipEmptyLines: true,
         complete: function(results) {
             results.data.forEach(row => {
-                // FORCE CLEAN: Remove spaces and convert to numbers
-                const rawLat = String(row.latitude).trim();
-                const rawLon = String(row.longitude).trim();
-                
-                const lat = parseFloat(rawLat);
-                const lon = parseFloat(rawLon);
+                // We use lowercase to match your sheet's headers
+                const lat = parseFloat(String(row.latitude).trim());
+                const lon = parseFloat(String(row.longitude).trim());
 
-                // Only draw if both are valid numbers
                 if(!isNaN(lat) && !isNaN(lon)) {
                     const name = row.nickname || "Waymarker";
                     const w3w = row.what3words || "";
