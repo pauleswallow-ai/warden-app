@@ -39,13 +39,18 @@
     Papa.parse(sheetURL, {
         download: true,
         header: true,
+        skipEmptyLines: true,
         complete: function(results) {
-            console.log("Found " + results.data.length + " rows in sheet.");
             results.data.forEach(row => {
-                // Ensure the headers match your sheet exactly (lowercase)
-                if(row.latitude && row.longitude) {
-                    const lat = parseFloat(row.latitude);
-                    const lon = parseFloat(row.longitude);
+                // FORCE CLEAN: Remove spaces and convert to numbers
+                const rawLat = String(row.latitude).trim();
+                const rawLon = String(row.longitude).trim();
+                
+                const lat = parseFloat(rawLat);
+                const lon = parseFloat(rawLon);
+
+                // Only draw if both are valid numbers
+                if(!isNaN(lat) && !isNaN(lon)) {
                     const name = row.nickname || "Waymarker";
                     const w3w = row.what3words || "";
 
