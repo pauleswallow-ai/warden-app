@@ -1,108 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Warden Waymarker Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
-    <style>
-        <style>
-    /* Prevent any scrolling on the main page */
-    body, html { 
-        margin: 0; 
-        padding: 0; 
-        height: 100%; 
-        width: 100%; 
-        overflow: hidden; 
-        position: fixed; /* Fixes the 'bounce' on iPhones */
-    }
-
-    #map { 
-        height: 100%; 
-        width: 100%; 
-        position: absolute; 
-        top: 0; 
-        left: 0; 
-    }
-
-    .marker-label { font-family: sans-serif; padding: 5px; min-width: 180px; }
-    .marker-photo { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: block; }
-    
-    .nav-btn { 
-        background: #28a745; color: white !important; border: none; padding: 12px; 
-        border-radius: 8px; cursor: pointer; width: 100%; margin-top: 10px; 
-        font-weight: bold; text-decoration: none; display: block; text-align: center;
-    }
-
-    /* Moves the Zoom buttons up slightly so they aren't cut off by the phone's edge */
-    .leaflet-bottom.leaflet-right {
-        margin-bottom: 25px;
-        margin-right: 10px;
-    }
-
-    .warden-icon { border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); background: white; }
-</style>    </style>
-</head>
-<body>
-
-<div id="map"></div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-
-<script>
-    const map = L.map('map', { zoomControl: false }).setView([52.906, -2.148], 15);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    L.control.locate({ position: 'topright', keepCurrentZoomLevel: true }).addTo(map);
-
-    // Function to turn a Google Drive Share link into a direct image link
-    function getDirectImgUrl(url) {
-        if (!url) return "";
-        if (url.includes("drive.google.com")) {
-            const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0];
-            return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w500` : url;
-        }
-        return url;
-    }
-
-    const wardenIcon = L.icon({
-        iconUrl: 'https://lh3.googleusercontent.com/d/1bpzkwUUr2CC_hx1A1-Y_6dzYfobFHsED',
-        iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -20], className: 'warden-icon'
-    });
-
-    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?output=csv";
+// ... (Keep your existing Header/CSS/Setup)
 
     Papa.parse(sheetURL, {
         download: true,
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
+            const pathPoints = []; // To store coordinates for the line
+
             results.data.forEach(row => {
                 const lat = parseFloat(String(row.latitude).trim());
                 const lon = parseFloat(String(row.longitude).trim());
 
                 if(!isNaN(lat) && !isNaN(lon)) {
+                    const currentCoords = [lat, lon];
+                    pathPoints.push(currentCoords); // Add to our path list
+
                     const photoUrl = getDirectImgUrl(row.photo);
                     let photoHtml = photoUrl ? `<img src="${photoUrl}" class="marker-photo">` : "";
 
-                    L.marker([lat, lon], {icon: wardenIcon}).addTo(map)
+                    L.marker(currentCoords, {icon: wardenIcon}).addTo(map)
                         .bindPopup(`
                             <div class="marker-label">
                                 <b>${row.nickname || "Marker"}</b><br>
                                 <small>///${(row.what3words || "").replace('///','')}</small>
                                 ${photoHtml}
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" 
-                                   target="_blank" class="nav-btn">Navigate</a>
+                                <hr>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving" 
+                                   target="_blank" class="nav-btn" style="background:#4285F4;">Road Nav to Trailhead</a>
+                                
+                                <div style="text-align:center; margin-top:10px; font-weight:bold; color:#d9534f;">
+                                    Direct Heading: Tracking...
+                                </div>
                             </div>
                         `);
                 }
             });
+
+            // DRAW THE LINE: This connects your waymarkers in order
+            if (pathPoints.length > 1) {
+                L.polyline(pathPoints, {
+                    color: '#ffc107', // Yellow to match your markers
+                    weight: 4,
+                    opacity: 0.7,
+                    dashArray: '10, 10', // Makes it a dashed line
+                    lineJoin: 'round'
+                }).addTo(map);
+            }
         }
     });
-</script>
-
-</body>
-</html>
