@@ -1,50 +1,101 @@
-// ... (Keep your existing Header/CSS/Setup)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Warden Field Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; position: fixed; background: #f8f9fa; }
+        #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; }
+        .marker-label { font-family: sans-serif; padding: 5px; min-width: 180px; }
+        .marker-photo { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: block; background: #eee; }
+        .nav-btn { 
+            background: #28a745; color: white !important; border: none; padding: 12px; 
+            border-radius: 8px; cursor: pointer; width: 100%; margin-top: 10px; 
+            font-weight: bold; text-decoration: none; display: block; text-align: center;
+        }
+        .road-btn { background: #4285F4; }
+        .warden-icon { border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); background: white; }
+        .leaflet-bottom.leaflet-right { margin-bottom: 25px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+
+<script>
+    // 1. Setup Map
+    const map = L.map('map', { zoomControl: false }).setView([52.906, -2.148], 15);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    
+    const userLocation = L.control.locate({ position: 'topright', keepCurrentZoomLevel: true }).addTo(map);
+
+    // 2. Link Helper
+    function getDirectImgUrl(url) {
+        if (!url || !url.includes("drive.google.com")) return url || "";
+        const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0];
+        return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w500` : url;
+    }
+
+    const wardenIcon = L.icon({
+        iconUrl: 'https://lh3.googleusercontent.com/d/1bpzkwUUr2CC_hx1A1-Y_6dzYfobFHsED',
+        iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -20], className: 'warden-icon'
+    });
+
+    // 3. Data Processing
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?output=csv";
 
     Papa.parse(sheetURL, {
         download: true,
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
-            const pathPoints = []; // To store coordinates for the line
+            const pathPoints = [];
 
             results.data.forEach(row => {
                 const lat = parseFloat(String(row.latitude).trim());
                 const lon = parseFloat(String(row.longitude).trim());
 
                 if(!isNaN(lat) && !isNaN(lon)) {
-                    const currentCoords = [lat, lon];
-                    pathPoints.push(currentCoords); // Add to our path list
+                    const pos = [lat, lon];
+                    pathPoints.push(pos);
 
                     const photoUrl = getDirectImgUrl(row.photo);
                     let photoHtml = photoUrl ? `<img src="${photoUrl}" class="marker-photo">` : "";
 
-                    L.marker(currentCoords, {icon: wardenIcon}).addTo(map)
+                    L.marker(pos, {icon: wardenIcon}).addTo(map)
                         .bindPopup(`
                             <div class="marker-label">
                                 <b>${row.nickname || "Marker"}</b><br>
                                 <small>///${(row.what3words || "").replace('///','')}</small>
                                 ${photoHtml}
-                                <hr>
                                 <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving" 
-                                   target="_blank" class="nav-btn" style="background:#4285F4;">Road Nav to Trailhead</a>
-                                
-                                <div style="text-align:center; margin-top:10px; font-weight:bold; color:#d9534f;">
-                                    Direct Heading: Tracking...
-                                </div>
+                                   target="_blank" class="nav-btn road-btn">Road Nav (Trailhead)</a>
                             </div>
                         `);
                 }
             });
 
-            // DRAW THE LINE: This connects your waymarkers in order
+            // Draw the yellow dashed path connecting the markers
             if (pathPoints.length > 1) {
                 L.polyline(pathPoints, {
-                    color: '#ffc107', // Yellow to match your markers
-                    weight: 4,
-                    opacity: 0.7,
-                    dashArray: '10, 10', // Makes it a dashed line
+                    color: '#FFD700',
+                    weight: 5,
+                    opacity: 0.8,
+                    dashArray: '10, 15',
                     lineJoin: 'round'
                 }).addTo(map);
             }
         }
     });
+</script>
+
+</body>
+</html>
