@@ -73,7 +73,7 @@
         }, (err) => { alert("GPS Error: " + err.message); }, { enableHighAccuracy: true });
     }
 
-    const sheetURL = "https://script.google.com/macros/s/AKfycby4dmmiO0p_t9zsJWdatPg32yZ9tw-GHVCYENnUvzeb2styDeRvfhQGgLWcWVXDnYbH/exec";
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?output=csv";
 
     Papa.parse(sheetURL, {
         download: true, header: true, skipEmptyLines: true,
