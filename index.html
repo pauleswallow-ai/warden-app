@@ -86,28 +86,38 @@ async function captureLocation() {
     const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?gid=941686088&single=true&output=csv";
 
     Papa.parse(sheetURL, {
-        download: true, header: true, skipEmptyLines: true,
+        download: true, 
+        header: true, // This tells the app to use Row 1 as names
+        skipEmptyLines: true,
         complete: function(results) {
             const routes = {};
             results.data.forEach(row => {
-                const lat = parseFloat(String(row.latitude || "").trim());
-                const lon = parseFloat(String(row.longitude || "").trim());
-                
-                // Fallback for missing IDs so the marker still shows
-                const rID = row.route_id || "Unassigned"; 
-                const pID = row.point_id || "NEW";
+                // We use row['column_name'] to find data regardless of position
+                const lat = parseFloat(String(row['latitude'] || "").trim());
+                const lon = parseFloat(String(row['longitude'] || "").trim());
+                const photoUrl = row['photo'] || ""; // Finds 'photo' column wherever it moved
+                const rID = row['route_id'] || "Unknown";
 
                 if(!isNaN(lat) && !isNaN(lon)) {
                     const pos = [lat, lon];
-                    
                     if (!routes[rID]) routes[rID] = [];
                     routes[rID].push(pos);
 
+                    // Generate the Photo HTML only if a link exists
+                    const photoHtml = photoUrl ? `<img src="${getDirectImgUrl(photoUrl)}" class="marker-photo">` : "";
+
                     L.marker(pos, {icon: wardenIcon}).addTo(map)
-                        .bindPopup(`<b>${row.nickname || "Waypoint"}</b><br><small>${rID}-${pID}</small>`);
+                        .bindPopup(`
+                            <div class="marker-label">
+                                <div class="route-header">${rID}</div><br>
+                                <b>${row['nickname'] || "Waypoint"}</b><br>
+                                ${photoHtml}
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving" target="_blank" class="nav-btn road-btn">Road Nav</a>
+                            </div>
+                        `);
                 }
             });
-            
+            // ... (rest of your polyline code)            
             Object.keys(routes).forEach(id => {
                 if (routes[id].length > 1) {
                     L.polyline(routes[id], { color: '#FFD700', weight: 5, dashArray: '10, 15' }).addTo(map);
