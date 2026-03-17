@@ -83,7 +83,7 @@ async function captureLocation() {
         }, { enableHighAccuracy: true });
     }
 
-    const sheetURL = "https://script.google.com/macros/s/AKfycbxI73MCSi0hxJ9bYBP18_q9oZgBaTzn-4ljXhuucfTOUwMyb1mgN6RVZzzLsSvuthXO/exec";
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?gid=941686088&single=true&output=csv";
 
     Papa.parse(sheetURL, {
         download: true, header: true, skipEmptyLines: true,
