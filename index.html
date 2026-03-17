@@ -48,29 +48,39 @@
         iconUrl: 'https://lh3.googleusercontent.com/d/1bpzkwUUr2CC_hx1A1-Y_6dzYfobFHsED', 
         iconSize: [35, 35], iconAnchor: [17, 17], popupAnchor: [0, -17], className: 'warden-icon'
     });
-
-    async function captureLocation() {
+async function captureLocation() {
         const btn = document.getElementById('capture-btn');
         btn.innerText = "Saving...";
         btn.disabled = true;
 
         navigator.geolocation.getCurrentPosition(async (pos) => {
-            const payload = { lat: pos.coords.latitude, lng: pos.coords.longitude, nickname: "Field Capture" };
+            const payload = { 
+                lat: pos.coords.latitude, 
+                lng: pos.coords.longitude, 
+                nickname: "Field Capture" 
+            };
+
             try {
+                // We use no-cors and no headers to bypass the "Completed but no data" bug
                 await fetch(WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'no-cors', 
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(payload)
+                    mode: 'no-cors',
+                    body: JSON.stringify(payload) 
                 });
-                alert("Location Sent!");
+                
+                alert("Location Sent! Checking Sheet...");
                 setTimeout(() => { location.reload(); }, 2500); 
+
             } catch (err) {
-                alert("Error: " + err);
+                alert("App Error: " + err);
                 btn.innerText = "📍 Save Point";
                 btn.disabled = false;
             }
-        }, (err) => { alert("GPS Error: " + err.message); }, { enableHighAccuracy: true });
+        }, (err) => {
+            alert("GPS Error: " + err.message);
+            btn.innerText = "📍 Save Point";
+            btn.disabled = false;
+        }, { enableHighAccuracy: true });
     }
 
     const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?output=csv";
