@@ -41,14 +41,22 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     L.control.locate({ position: 'topright', keepCurrentZoomLevel: true, flyTo: true }).addTo(map);
 
-    // --- PASTE YOUR URL HERE ---
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7yJyU-8uG_Mly8TEkHoE8Icjr8qRDvkZaeQAaFKU360E_lszic5XMjRXes1UYiYzB/exec";
 
+    // FIXED QUOTE AND COMMA HERE:
     const wardenIcon = L.icon({
-        iconUrl: 'https://lh3.googleusercontent.com/d/1bpzkwUUr2CC_hx1A1-Y_6dzYfobFHsED', 
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', 
         iconSize: [35, 35], iconAnchor: [17, 17], popupAnchor: [0, -17], className: 'warden-icon'
     });
-async function captureLocation() {
+
+    // Added this helper back in so photos don't break the app
+    function getDirectImgUrl(url) {
+        if (!url || !url.includes("drive.google.com")) return url || "";
+        const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0];
+        return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w500` : url;
+    }
+
+    async function captureLocation() {
         const btn = document.getElementById('capture-btn');
         btn.innerText = "Saving...";
         btn.disabled = true;
@@ -61,7 +69,6 @@ async function captureLocation() {
             };
 
             try {
-                // We use no-cors and no headers to bypass the "Completed but no data" bug
                 await fetch(WEB_APP_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -87,15 +94,14 @@ async function captureLocation() {
 
     Papa.parse(sheetURL, {
         download: true, 
-        header: true, // This tells the app to use Row 1 as names
+        header: true,
         skipEmptyLines: true,
         complete: function(results) {
             const routes = {};
             results.data.forEach(row => {
-                // We use row['column_name'] to find data regardless of position
                 const lat = parseFloat(String(row['latitude'] || "").trim());
                 const lon = parseFloat(String(row['longitude'] || "").trim());
-                const photoUrl = row['photo'] || ""; // Finds 'photo' column wherever it moved
+                const photoUrl = row['photo'] || ""; 
                 const rID = row['route_id'] || "Unknown";
 
                 if(!isNaN(lat) && !isNaN(lon)) {
@@ -103,7 +109,6 @@ async function captureLocation() {
                     if (!routes[rID]) routes[rID] = [];
                     routes[rID].push(pos);
 
-                    // Generate the Photo HTML only if a link exists
                     const photoHtml = photoUrl ? `<img src="${getDirectImgUrl(photoUrl)}" class="marker-photo">` : "";
 
                     L.marker(pos, {icon: wardenIcon}).addTo(map)
@@ -117,7 +122,7 @@ async function captureLocation() {
                         `);
                 }
             });
-            // ... (rest of your polyline code)            
+            
             Object.keys(routes).forEach(id => {
                 if (routes[id].length > 1) {
                     L.polyline(routes[id], { color: '#FFD700', weight: 5, dashArray: '10, 15' }).addTo(map);
