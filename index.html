@@ -92,17 +92,22 @@ async function captureLocation() {
             results.data.forEach(row => {
                 const lat = parseFloat(String(row.latitude || "").trim());
                 const lon = parseFloat(String(row.longitude || "").trim());
-                const rID = row.route_id || "Unknown";
+                
+                // Fallback for missing IDs so the marker still shows
+                const rID = row.route_id || "Unassigned"; 
+                const pID = row.point_id || "NEW";
 
                 if(!isNaN(lat) && !isNaN(lon)) {
+                    const pos = [lat, lon];
+                    
                     if (!routes[rID]) routes[rID] = [];
-                    routes[rID].push([lat, lon]);
+                    routes[rID].push(pos);
 
-                    L.marker([lat, lon], {icon: wardenIcon}).addTo(map)
-                        .bindPopup(`<div class="marker-label"><div class="route-header">${rID}</div><br><b>${row.nickname || "Waypoint"}</b></div>`);
+                    L.marker(pos, {icon: wardenIcon}).addTo(map)
+                        .bindPopup(`<b>${row.nickname || "Waypoint"}</b><br><small>${rID}-${pID}</small>`);
                 }
             });
-
+            
             Object.keys(routes).forEach(id => {
                 if (routes[id].length > 1) {
                     L.polyline(routes[id], { color: '#FFD700', weight: 5, dashArray: '10, 15' }).addTo(map);
