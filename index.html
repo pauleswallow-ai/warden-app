@@ -115,7 +115,7 @@ async function captureLocation() {
                 const lat = parseFloat(row['latitude']);
                 const lon = parseFloat(row['longitude']);
                 const photoUrl = row['photo'] || ""; 
-                const isFork = (row['fork'] || "").toUpperCase() === "YES";
+                const isFork = String(row['fork']).trim().toUpperCase() === "YES";
                 const rID = row['route_id'] || "Unknown";
 
                 if(!isNaN(lat) && !isNaN(lon)) {
