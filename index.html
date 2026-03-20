@@ -67,9 +67,10 @@
         return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w500` : url;
     }
 
-    async function captureLocation() {
+async function captureLocation() {
         const btn = document.getElementById('capture-btn');
-        const isFork = confirm("Is this a Fork in the path?"); 
+        // This popup will appear on your phone screen
+        const userChoice = confirm("Is this a Fork/Junction in the path?"); 
         
         btn.innerText = "Saving...";
         btn.disabled = true;
@@ -78,8 +79,8 @@
             const payload = { 
                 lat: pos.coords.latitude, 
                 lng: pos.coords.longitude, 
-                nickname: isFork ? "Fork/Junction" : "Field Capture",
-                isFork: isFork 
+                nickname: userChoice ? "Fork/Junction" : "Field Capture",
+                isFork: userChoice // This sends true or false
             };
 
             try {
@@ -89,8 +90,8 @@
                     body: JSON.stringify(payload) 
                 });
                 
-                alert("Location Sent! Refreshing Map...");
-                setTimeout(() => { location.reload(); }, 2500); 
+                alert(userChoice ? "Fork Saved! (Orange Pin)" : "Location Saved! (Blue Pin)");
+                setTimeout(() => { location.reload(); }, 1500); 
 
             } catch (err) {
                 alert("App Error: " + err);
