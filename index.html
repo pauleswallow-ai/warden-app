@@ -112,21 +112,21 @@
         const payload = { 
             lat: tempCoords.latitude, 
             lng: tempCoords.longitude, 
-            nickname: isFork ? "Fork/Junction" : "Field Capture",
+            // We remove the 'nickname' line so the Spreadsheet can generate it
             isFork: isFork 
         };
 
         try {
             await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-            alert("Success! Check sheet for ST15 ID.");
-            location.reload();
+            alert("Success! Identifying Path...");
+            setTimeout(() => { location.reload(); }, 3000); // Give the sheet 3 seconds to "think"
         } catch (err) {
             alert("Error: " + err);
             btn.disabled = false;
             btn.innerText = "📍 Save Point";
         }
     }
-
+    
     function getDirectImgUrl(url) {
         if (!url || !url.includes("drive.google.com")) return url || "";
         const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0];
