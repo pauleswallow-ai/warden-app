@@ -9,13 +9,14 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; position: fixed; background: #f8f9fa; }
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; }
+        
+        /* Marker Styling */
         .marker-label { font-family: sans-serif; padding: 5px; min-width: 180px; }
         .route-header { background: #2c3e50; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; display: inline-block; margin-bottom: 5px; }
         .marker-photo { width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: block; background: #eee; }
-        .nav-btn { background: #28a745; color: white !important; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; text-decoration: none; display: block; text-align: center; font-size: 14px; }
-        .road-btn { background: #4285F4; }
-        .warden-icon { border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); background: white; }
+        .nav-btn { background: #4285F4; color: white !important; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; text-decoration: none; display: block; text-align: center; font-size: 14px; }
         
+        /* Capture Button */
         #capture-btn { 
             position: absolute; top: 80px; right: 10px; z-index: 1000;
             background: #d9534f; color: white; border: 2px solid white;
@@ -23,10 +24,36 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer;
             font-family: sans-serif; font-size: 14px;
         }
-        #capture-btn:disabled { background: #888; }
+
+        /* Custom Modal (Yes/No/Cancel) */
+        #warden-modal {
+            display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.8); font-family: sans-serif;
+        }
+        .modal-content {
+            background-color: white; margin: 25% auto; padding: 25px; border-radius: 20px;
+            width: 85%; max-width: 350px; text-align: center; box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+        }
+        .modal-btn {
+            display: block; width: 100%; padding: 15px; margin: 12px 0; border: none;
+            border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer;
+        }
+        .btn-yes { background: #f39c12; color: white; } /* Orange for Fork */
+        .btn-no { background: #3498db; color: white; }  /* Blue for Regular */
+        .btn-cancel { background: #95a5a6; color: white; }
     </style>
 </head>
 <body>
+
+<div id="warden-modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">Point Type</h3>
+        <p>Is this a Fork/Junction?</p>
+        <button class="modal-btn btn-yes" onclick="sendData(true)">YES (Orange Pin)</button>
+        <button class="modal-btn btn-no" onclick="sendData(false)">NO (Blue Pin)</button>
+        <button class="modal-btn btn-cancel" onclick="closeModal()">CANCEL</button>
+    </div>
+</div>
 
 <button id="capture-btn" onclick="captureLocation()">📍 Save Point</button>
 <div id="map"></div>
@@ -41,25 +68,64 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     L.control.locate({ position: 'topright', keepCurrentZoomLevel: true, flyTo: true }).addTo(map);
 
-    // --- YOUR UPDATED SCRIPT URL ---
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7yJyU-8uG_Mly8TEkHoE8Icjr8qRDvkZaeQAaFKU360E_lszic5XMjRXes1UYiYzB/exec";
-    
-    // --- CSV URL (Markers Tab) ---
     const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?gid=941686088&single=true&output=csv";
 
-    // Standard Icon (Blue)
-    const wardenIcon = L.icon({
+    // Icons
+    const blueIcon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
         iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
     });
 
-    // Fork Icon (Orange)
-    const forkIcon = L.icon({
+    const orangeIcon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
         iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
     });
+
+    let tempCoords = null;
+
+    function captureLocation() {
+        const btn = document.getElementById('capture-btn');
+        btn.innerText = "Locating...";
+        navigator.geolocation.getCurrentPosition((pos) => {
+            tempCoords = pos.coords;
+            document.getElementById('warden-modal').style.display = 'block';
+        }, (err) => {
+            alert("GPS Error: " + err.message);
+            btn.innerText = "📍 Save Point";
+        }, { enableHighAccuracy: true });
+    }
+
+    function closeModal() {
+        document.getElementById('warden-modal').style.display = 'none';
+        document.getElementById('capture-btn').innerText = "📍 Save Point";
+    }
+
+    async function sendData(isFork) {
+        closeModal();
+        const btn = document.getElementById('capture-btn');
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+
+        const payload = { 
+            lat: tempCoords.latitude, 
+            lng: tempCoords.longitude, 
+            nickname: isFork ? "Fork/Junction" : "Field Capture",
+            isFork: isFork 
+        };
+
+        try {
+            await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+            alert("Success! Check sheet for ST15 ID.");
+            location.reload();
+        } catch (err) {
+            alert("Error: " + err);
+            btn.disabled = false;
+            btn.innerText = "📍 Save Point";
+        }
+    }
 
     function getDirectImgUrl(url) {
         if (!url || !url.includes("drive.google.com")) return url || "";
@@ -67,56 +133,17 @@
         return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w500` : url;
     }
 
-async function captureLocation() {
-        const btn = document.getElementById('capture-btn');
-        // This popup will appear on your phone screen
-        const userChoice = confirm("Is this a Fork/Junction in the path?"); 
-        
-        btn.innerText = "Saving...";
-        btn.disabled = true;
-
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-            const payload = { 
-                lat: pos.coords.latitude, 
-                lng: pos.coords.longitude, 
-                nickname: userChoice ? "Fork/Junction" : "Field Capture",
-                isFork: userChoice // This sends true or false
-            };
-
-            try {
-                await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify(payload) 
-                });
-                
-                alert(userChoice ? "Fork Saved! (Orange Pin)" : "Location Saved! (Blue Pin)");
-                setTimeout(() => { location.reload(); }, 1500); 
-
-            } catch (err) {
-                alert("App Error: " + err);
-                btn.innerText = "📍 Save Point";
-                btn.disabled = false;
-            }
-        }, (err) => {
-            alert("GPS Error: " + err.message);
-            btn.innerText = "📍 Save Point";
-            btn.disabled = false;
-        }, { enableHighAccuracy: true });
-    }
-
     Papa.parse(sheetURL, {
-        download: true, 
-        header: true,
-        skipEmptyLines: true,
+        download: true, header: true, skipEmptyLines: true,
         complete: function(results) {
             const routes = {};
             results.data.forEach(row => {
                 const lat = parseFloat(row['latitude']);
                 const lon = parseFloat(row['longitude']);
                 const photoUrl = row['photo'] || ""; 
-                const isFork = String(row['fork']).trim().toUpperCase() === "YES";
-                const rID = row['route_id'] || "Unknown";
+                const forkVal = String(row['fork'] || "").trim().toUpperCase();
+                const isFork = forkVal === "YES";
+                const rID = row['route_id'] || "ST15-???";
 
                 if(!isNaN(lat) && !isNaN(lon)) {
                     const pos = [lat, lon];
@@ -124,16 +151,15 @@ async function captureLocation() {
                     routes[rID].push(pos);
 
                     const photoHtml = photoUrl ? `<img src="${getDirectImgUrl(photoUrl)}" class="marker-photo">` : "";
-                    const activeIcon = isFork ? forkIcon : wardenIcon;
 
-                    L.marker(pos, {icon: activeIcon}).addTo(map)
+                    L.marker(pos, {icon: isFork ? orangeIcon : blueIcon}).addTo(map)
                         .bindPopup(`
                             <div class="marker-label">
                                 <div class="route-header">${rID}${isFork ? " - FORK" : ""}</div><br>
                                 <b>${row['nickname'] || "Waypoint"}</b><br>
                                 ${photoHtml}
                                 <div style="font-size:0.8em; color:#666; margin-top:5px;">Managed by: ${row['managed_by'] || "Staffordshire CC"}</div>
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" class="nav-btn road-btn">Get Directions</a>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" class="nav-btn">Get Directions</a>
                             </div>
                         `);
                 }
