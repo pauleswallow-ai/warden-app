@@ -41,15 +41,26 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     L.control.locate({ position: 'topright', keepCurrentZoomLevel: true, flyTo: true }).addTo(map);
 
+    // --- YOUR UPDATED SCRIPT URL ---
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7yJyU-8uG_Mly8TEkHoE8Icjr8qRDvkZaeQAaFKU360E_lszic5XMjRXes1UYiYzB/exec";
+    
+    // --- CSV URL (Markers Tab) ---
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?gid=941686088&single=true&output=csv";
 
-    // FIXED QUOTE AND COMMA HERE:
+    // Standard Icon (Blue)
     const wardenIcon = L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', 
-        iconSize: [35, 35], iconAnchor: [17, 17], popupAnchor: [0, -17], className: 'warden-icon'
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
     });
 
-    // Added this helper back in so photos don't break the app
+    // Fork Icon (Orange)
+    const forkIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+    });
+
     function getDirectImgUrl(url) {
         if (!url || !url.includes("drive.google.com")) return url || "";
         const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0];
@@ -58,6 +69,8 @@
 
     async function captureLocation() {
         const btn = document.getElementById('capture-btn');
+        const isFork = confirm("Is this a Fork in the path?"); 
+        
         btn.innerText = "Saving...";
         btn.disabled = true;
 
@@ -65,7 +78,8 @@
             const payload = { 
                 lat: pos.coords.latitude, 
                 lng: pos.coords.longitude, 
-                nickname: "Field Capture" 
+                nickname: isFork ? "Fork/Junction" : "Field Capture",
+                isFork: isFork 
             };
 
             try {
@@ -75,7 +89,7 @@
                     body: JSON.stringify(payload) 
                 });
                 
-                alert("Location Sent! Checking Sheet...");
+                alert("Location Sent! Refreshing Map...");
                 setTimeout(() => { location.reload(); }, 2500); 
 
             } catch (err) {
@@ -90,8 +104,6 @@
         }, { enableHighAccuracy: true });
     }
 
-    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?gid=941686088&single=true&output=csv";
-
     Papa.parse(sheetURL, {
         download: true, 
         header: true,
@@ -99,9 +111,10 @@
         complete: function(results) {
             const routes = {};
             results.data.forEach(row => {
-                const lat = parseFloat(String(row['latitude'] || "").trim());
-                const lon = parseFloat(String(row['longitude'] || "").trim());
+                const lat = parseFloat(row['latitude']);
+                const lon = parseFloat(row['longitude']);
                 const photoUrl = row['photo'] || ""; 
+                const isFork = (row['fork'] || "").toUpperCase() === "YES";
                 const rID = row['route_id'] || "Unknown";
 
                 if(!isNaN(lat) && !isNaN(lon)) {
@@ -110,14 +123,16 @@
                     routes[rID].push(pos);
 
                     const photoHtml = photoUrl ? `<img src="${getDirectImgUrl(photoUrl)}" class="marker-photo">` : "";
+                    const activeIcon = isFork ? forkIcon : wardenIcon;
 
-                    L.marker(pos, {icon: wardenIcon}).addTo(map)
+                    L.marker(pos, {icon: activeIcon}).addTo(map)
                         .bindPopup(`
                             <div class="marker-label">
-                                <div class="route-header">${rID}</div><br>
+                                <div class="route-header">${rID}${isFork ? " - FORK" : ""}</div><br>
                                 <b>${row['nickname'] || "Waypoint"}</b><br>
                                 ${photoHtml}
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving" target="_blank" class="nav-btn road-btn">Road Nav</a>
+                                <div style="font-size:0.8em; color:#666; margin-top:5px;">Managed by: ${row['managed_by'] || "Staffordshire CC"}</div>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" class="nav-btn road-btn">Get Directions</a>
                             </div>
                         `);
                 }
