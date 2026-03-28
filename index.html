@@ -1,177 +1,113 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
+    <title>Warden</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Warden Global Navigator</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; position: fixed; background: #f8f9fa; }
-        #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; }
-        
-        /* Marker Styling */
-        .marker-label { font-family: sans-serif; padding: 5px; min-width: 180px; }
-        .route-header { background: #2c3e50; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; display: inline-block; margin-bottom: 5px; }
-        .marker-photo { width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: block; background: #eee; }
-        .nav-btn { background: #4285F4; color: white !important; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; text-decoration: none; display: block; text-align: center; font-size: 14px; }
-        
-        /* Capture Button */
-        #capture-btn { 
-            position: absolute; top: 80px; right: 10px; z-index: 1000;
-            background: #d9534f; color: white; border: 2px solid white;
-            padding: 12px 18px; border-radius: 50px; font-weight: bold;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer;
-            font-family: sans-serif; font-size: 14px;
-        }
-
-        /* Custom Modal (Yes/No/Cancel) */
-        #warden-modal {
-            display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.8); font-family: sans-serif;
-        }
-        .modal-content {
-            background-color: white; margin: 25% auto; padding: 25px; border-radius: 20px;
-            width: 85%; max-width: 350px; text-align: center; box-shadow: 0 5px 25px rgba(0,0,0,0.5);
-        }
-        .modal-btn {
-            display: block; width: 100%; padding: 15px; margin: 12px 0; border: none;
-            border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer;
-        }
-        .btn-yes { background: #f39c12; color: white; } /* Orange for Fork */
-        .btn-no { background: #3498db; color: white; }  /* Blue for Regular */
-        .btn-cancel { background: #95a5a6; color: white; }
+        body { margin: 0; padding: 0; font-family: sans-serif; background: #f4f4f4; }
+        #map { height: 60vh; width: 100%; }
+        .controls { padding: 15px; background: white; border-top: 2px solid #2ecc71; }
+        .preview-box { background: #e8f5e9; padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #c8e6c9; }
+        input, select, button { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        button { background-color: #2ecc71; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:active { background-color: #27ae60; }
+        label { font-size: 12px; color: #666; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="warden-modal">
-    <div class="modal-content">
-        <h3 style="margin-top:0;">Point Type</h3>
-        <p>Is this a Fork/Junction?</p>
-        <button class="modal-btn btn-yes" onclick="sendData(true)">YES (Orange Pin)</button>
-        <button class="modal-btn btn-no" onclick="sendData(false)">NO (Blue Pin)</button>
-        <button class="modal-btn btn-cancel" onclick="closeModal()">CANCEL</button>
-    </div>
-</div>
-
-<button id="capture-btn" onclick="captureLocation()">📍 Save Point</button>
 <div id="map"></div>
 
+<div class="controls">
+    <div class="preview-box">
+        <strong>Naming Preview:</strong> <span id="display-name" style="color: #27ae60;">ST15-???</span>
+    </div>
+
+    <label>Route ID (Col A)</label>
+    <input type="text" id="route-id" placeholder="e.g. ST15-001" oninput="updatePreview()">
+
+    <label>Nickname (Col G)</label>
+    <input type="text" id="nickname" placeholder="e.g. Broken Gate" oninput="updatePreview()">
+
+    <label>Is this a Fork? (Col J)</label>
+    <select id="is-fork" onchange="updatePreview()">
+        <option value="NO">NO</option>
+        <option value="YES">YES</option>
+    </select>
+
+    <button onclick="getLocationAndSave()">SAVE POINT TO SHEET</button>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-
 <script>
-    const map = L.map('map', { zoomControl: false }).setView([52.906, -2.148], 15);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    L.control.locate({ position: 'topright', keepCurrentZoomLevel: true, flyTo: true }).addTo(map);
-
+    // --- 1. SETTINGS ---
+    // PASTE YOUR GOOGLE WEB APP URL HERE:
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7yJyU-8uG_Mly8TEkHoE8Icjr8qRDvkZaeQAaFKU360E_lszic5XMjRXes1UYiYzB/exec";
-    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTi5YTVr6GkWiJgxhgAh6aZE2ShkxuLx6RfkZ6ncjIemdpgJZrVfak3rN2DuENZsdQL0wk5GDMhMAav/pub?gid=941686088&single=true&output=csv";
 
-    // Icons
-    const blueIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-    });
+    const map = L.map('map').setView([52.9064, -2.1485], 13); // Centered on Stone
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    let marker;
 
-    const orangeIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-    });
+    // --- 2. THE PREVIEW ENGINE ---
+    function updatePreview() {
+        const routeId = document.getElementById('route-id').value || "ST15-???";
+        const nickname = document.getElementById('nickname').value;
+        const isFork = document.getElementById('is-fork').value;
 
-    let tempCoords = null;
-
-    function captureLocation() {
-        const btn = document.getElementById('capture-btn');
-        btn.innerText = "Locating...";
-        navigator.geolocation.getCurrentPosition((pos) => {
-            tempCoords = pos.coords;
-            document.getElementById('warden-modal').style.display = 'block';
-        }, (err) => {
-            alert("GPS Error: " + err.message);
-            btn.innerText = "📍 Save Point";
-        }, { enableHighAccuracy: true });
+        let name = nickname ? nickname + " (" + routeId + ")" : routeId;
+        if (isFork === "YES") {
+            name = "[FORK] " + name;
+        }
+        document.getElementById('display-name').innerText = name;
+        return name;
     }
 
-    function closeModal() {
-        document.getElementById('warden-modal').style.display = 'none';
-        document.getElementById('capture-btn').innerText = "📍 Save Point";
-    }
+    // --- 3. THE TRANSMITTER ---
+    function getLocationAndSave() {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser");
+            return;
+        }
 
-    async function sendData(isFork) {
-        closeModal();
-        const btn = document.getElementById('capture-btn');
-        btn.innerText = "Saving...";
+        const btn = document.querySelector('button');
+        btn.innerText = "SAVING...";
         btn.disabled = true;
 
-        const payload = { 
-            lat: tempCoords.latitude, 
-            lng: tempCoords.longitude, 
-            // We remove the 'nickname' line so the Spreadsheet can generate it
-            isFork: isFork 
-        };
+        navigator.geolocation.getCurrentPosition((position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
 
-        try {
-            await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-            alert("Success! Identifying Path...");
-            setTimeout(() => { location.reload(); }, 3000); // Give the sheet 3 seconds to "think"
-        } catch (err) {
-            alert("Error: " + err);
-            btn.disabled = false;
-            btn.innerText = "📍 Save Point";
-        }
-    }
-    
-    function getDirectImgUrl(url) {
-        if (!url || !url.includes("drive.google.com")) return url || "";
-        const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0];
-        return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w500` : url;
-    }
+            // Show on map
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lng]).addTo(map);
+            map.setView([lat, lng], 16);
 
-    Papa.parse(sheetURL, {
-        download: true, header: true, skipEmptyLines: true,
-        complete: function(results) {
-            const routes = {};
-            results.data.forEach(row => {
-                const lat = parseFloat(row['latitude']);
-                const lon = parseFloat(row['longitude']);
-                const photoUrl = row['photo'] || ""; 
-                const forkVal = String(row['fork'] || "").trim().toUpperCase();
-                const isFork = forkVal === "YES";
-                const rID = row['route_id'] || "ST15-???";
+            const payload = {
+                routeId: document.getElementById('route-id').value,
+                nickname: document.getElementById('nickname').value,
+                isFork: document.getElementById('is-fork').value,
+                lat: lat,
+                lng: lng
+            };
 
-                if(!isNaN(lat) && !isNaN(lon)) {
-                    const pos = [lat, lon];
-                    if (!routes[rID]) routes[rID] = [];
-                    routes[rID].push(pos);
-
-                    const photoHtml = photoUrl ? `<img src="${getDirectImgUrl(photoUrl)}" class="marker-photo">` : "";
-
-                    L.marker(pos, {icon: isFork ? orangeIcon : blueIcon}).addTo(map)
-                        .bindPopup(`
-                            <div class="marker-label">
-                                <div class="route-header">${rID}${isFork ? " - FORK" : ""}</div><br>
-                                <b>${row['nickname'] || "Waypoint"}</b><br>
-                                ${photoHtml}
-                                <div style="font-size:0.8em; color:#666; margin-top:5px;">Managed by: ${row['managed_by'] || "Staffordshire CC"}</div>
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}" target="_blank" class="nav-btn">Get Directions</a>
-                            </div>
-                        `);
-                }
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                alert("Saved: " + document.getElementById('display-name').innerText);
+                btn.innerText = "SAVE POINT TO SHEET";
+                btn.disabled = false;
+            })
+            .catch(err => {
+                alert("Error: " + err);
+                btn.disabled = false;
             });
-            
-            Object.keys(routes).forEach(id => {
-                if (routes[id].length > 1) {
-                    L.polyline(routes[id], { color: '#FFD700', weight: 5, dashArray: '10, 15' }).addTo(map);
-                }
-            });
-        }
-    });
+        });
+    }
 </script>
+
 </body>
 </html>
