@@ -5,59 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --brand-yellow: #FFD700; --brand-black: #000000; }
-        body { margin: 0; padding: 0; font-family: 'Arial Black', sans-serif; background: var(--brand-black); color: var(--brand-yellow); }
-        #map { height: 70vh; width: 100%; border-bottom: 4px solid var(--brand-yellow); }
+        :root { --yellow: #FFD700; --black: #000000; }
+        body { margin: 0; padding: 0; font-family: 'Arial Black', sans-serif; background: var(--black); color: var(--yellow); overflow: hidden; }
         
-        /* The Waze-style Login Overlay */
+        /* The Header */
+        header { 
+            position: absolute; top: 0; width: 100%; z-index: 1000; 
+            background: rgba(0,0,0,0.8); padding: 15px; display: flex; 
+            justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,215,0,0.3);
+        }
+        
+        #map { height: 100vh; width: 100%; z-index: 1; }
+
+        /* Bottom Controls */
+        .bottom-ui { 
+            position: absolute; bottom: 30px; width: 100%; z-index: 1000; 
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
+        }
+
+        /* Active Tracking Bar */
+        #tracking-bar { 
+            background: var(--yellow); color: var(--black); padding: 8px 20px; 
+            border-radius: 20px; font-size: 12px; font-weight: bold; display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .btn-row { display: flex; width: 90%; gap: 10px; }
+        button { 
+            flex: 1; padding: 18px; border-radius: 12px; font-weight: bold; 
+            font-size: 16px; border: 2px solid var(--yellow); transition: 0.2s;
+        }
+        .btn-report { background: var(--black); color: var(--yellow); }
+        .btn-track { background: var(--yellow); color: var(--black); }
+        .tracking-active { background: #ff0000 !important; color: white !important; border-color: #ff0000 !important; }
+
+        /* Login Overlay */
         #auth-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: var(--brand-black); z-index: 9999; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: fixed; inset: 0; background: var(--black); z-index: 2000; 
+            display: flex; flex-direction: column; items: center; justify-content: center; padding: 20px;
         }
-        
-        .controls { padding: 15px; display: grid; gap: 10px; }
-        input, select, button { 
-            background: var(--brand-black); color: var(--brand-yellow); 
-            border: 2px solid var(--brand-yellow); padding: 15px; font-size: 16px; font-weight: bold;
-        }
-        button { background: var(--brand-yellow); color: var(--brand-black); text-transform: uppercase; }
-        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div id="auth-overlay">
-    <h1>WARDEN ID</h1>
-    <input type="text" id="warden-name-input" placeholder="ENTER YOUR NAME">
-    <button onclick="setWardenID()">INITIALIZE APP</button>
+    <h1 style="font-size: 3rem;">WARDEN</h1>
+    <input type="text" id="warden-name-input" placeholder="ENTER YOUR NAME" style="width: 80%; padding: 15px; background: #222; border: 1px solid var(--yellow); color: white; margin-bottom: 20px;">
+    <button onclick="setWardenID()" class="btn-track">INITIALIZE</button>
 </div>
+
+<header>
+    <div style="background: var(--yellow); color: black; padding: 4px 8px; border-radius: 4px;">WARDEN</div>
+    <div id="active-warden-id" style="font-family: monospace;">---</div>
+</header>
 
 <div id="map"></div>
 
-<div class="controls">
-    <div style="font-size: 12px;">ID: <span id="active-warden">---</span></div>
-    <input type="text" id="route-id" placeholder="ROUTE ID (ST15-xxx)">
-    <input type="text" id="nickname" placeholder="NICKNAME (e.g. Broken Stile)">
-    <select id="is-fork">
-        <option value="NO">NOT A FORK</option>
-        <option value="YES">IS A FORK</option>
-    </select>
-    <button onclick="saveWardenPoint()">SAVE WAYPOINT</button>
+<div class="bottom-ui">
+    <div id="tracking-bar">🔴 BREAKING TRAIL (ACTIVE)</div>
+    <div class="btn-row">
+        <button class="btn-report" onclick="alert('Form coming next!')">REPORT</button>
+        <button id="track-btn" class="btn-track" onclick="toggleTracking()">TRACK</button>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw7yJyU-8uG_Mly8TEkHoE8Icjr8qRDvkZaeQAaFKU360E_lszic5XMjRXes1UYiYzB/exec";
-    const map = L.map('map').setView([52.9064, -2.1485], 14);
+    const WEB_APP_URL = "YOUR_APPS_SCRIPT_URL_HERE";
+    const map = L.map('map', { zoomControl: false }).setView([52.9064, -2.1485], 14);
+    
+    // Layers (Sprint 2)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', { opacity: 0.6 }).addTo(map);
 
-    // Sprint 1 Logic: Check for saved Identity
+    let isTracking = false;
+    let trackPath = L.polyline([], {color: '#FFD700', weight: 5}).addTo(map);
+
     window.onload = function() {
-        const savedName = localStorage.getItem('wardenName');
-        if (savedName) {
-            document.getElementById('auth-overlay').classList.add('hidden');
-            document.getElementById('active-warden').innerText = savedName;
+        const name = localStorage.getItem('wardenName');
+        if (name) {
+            document.getElementById('auth-overlay').style.display = 'none';
+            document.getElementById('active-warden-id').innerText = name;
         }
     };
 
@@ -69,28 +97,37 @@
         }
     }
 
-    function saveWardenPoint() {
-        const btn = document.querySelector('button[onclick="saveWardenPoint()"]');
-        btn.innerText = "UPLOADING...";
+    function toggleTracking() {
+        isTracking = !isTracking;
+        const btn = document.getElementById('track-btn');
+        const bar = document.getElementById('tracking-bar');
         
-        navigator.geolocation.getCurrentPosition(pos => {
-            const payload = {
-                wardenName: localStorage.getItem('wardenName'),
-                routeId: document.getElementById('route-id').value,
-                nickname: document.getElementById('nickname').value,
-                isFork: document.getElementById('is-fork').value,
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude
-            };
+        if (isTracking) {
+            btn.innerText = "STOP";
+            btn.classList.add('tracking-active');
+            bar.style.display = 'block';
+            startGpsWatch();
+        } else {
+            btn.innerText = "TRACK";
+            btn.classList.remove('tracking-active');
+            bar.style.display = 'none';
+            stopGpsWatch();
+        }
+    }
 
-            fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) })
-            .then(() => {
-                alert("Waypoint Logged!");
-                btn.innerText = "SAVE WAYPOINT";
-                document.getElementById('nickname').value = "";
-            });
-        });
+    let watchId;
+    function startGpsWatch() {
+        watchId = navigator.geolocation.watchPosition(pos => {
+            const newPoint = [pos.coords.latitude, pos.coords.longitude];
+            trackPath.addLatLng(newPoint);
+            map.panTo(newPoint);
+        }, err => console.error(err), { enableHighAccuracy: true });
+    }
+
+    function stopGpsWatch() {
+        navigator.geolocation.clearWatch(watchId);
     }
 </script>
+
 </body>
 </html>
